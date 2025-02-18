@@ -1,0 +1,13 @@
+#Tarea1: Ana Elena Sordo Quezada
+
+Motivo_de_muerte <- c("Falla_sistema_urinario","Neoplasia","Infeccioso","Trauma",
+                      "Falla_sistema_cardiovascular","Muerte_súbita","Cuerpo_extraño")
+cero_a_cuatro_años <- c(16,13,23,19,4,3,1)
+cinco_a_nueve_años <- c(33,23,15,5,6,3,5)
+diez_a_catorce_años <- c(47,50,13,3,9,1,0)
+quince_a_mas_años <- c(43,37,2,1,2,0,0)
+Tabla_motivo_de_muerte <- data.frame(Motivo_de_muerte =Motivo_de_muerte,
+                                     cero_a_cuatro_años=cero_a_cuatro_años,
+                                     cinco_a_nueve_años=cinco_a_nueve_años,
+                                     diez_a_catorce_años=diez_a_catorce_años,
+                                     quince_a_mas_años=quince_a_mas_años)
