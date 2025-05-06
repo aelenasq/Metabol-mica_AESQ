@@ -1,0 +1,213 @@
+---
+title: "Cuantificación absoluta"
+author: "Equipo LANS"
+date: "2025-05-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+if(!require("pacman"))
+  install.packages("pacman")
+```
+
+```{r}
+library("pacman")
+
+```
+
+```{r}
+p_load("vroom",
+       "ggplot2",
+       "dplyr",
+       "ggrepel",
+       "tidyverse",
+       "scales")
+```
+
+#Llamar a la base de datos
+
+```{r}
+Datos_PCR <-vroom("https://raw.githubusercontent.com/ManuelLaraMVZ/resultados_PCR_practica/refs/heads/main/Cts1.csv")
+
+Datos_PCR
+
+```
+
+
+#Filtrado de datos
+
+```{r}
+Datos_curva <- Datos_PCR %>% 
+  filter(Practica == "Absoluta",
+         Grupo == "Curva") %>% 
+  select("Well","Cq") %>% 
+  mutate(Well = as.numeric(Well),
+         Curva = Well,
+         LogConc = log10(Curva)) %>% 
+  select(3,4,2)
+Datos_curva
+```
+
+#Gráfica de datos
+
+```{r}
+Grafica <- ggplot(Datos_curva,
+                 aes(x = LogConc,
+                     y = Cq))+
+  geom_point(color = "#2392e6", size = 4)+
+  theme_classic()
+Grafica
+
+Realizar el ajuste linear
+```
+```{r}
+modelo_lineal <- lm (data = Datos_curva, Cq ~ LogConc)
+
+modelo_lineal
+
+```
+#Obtención de coeficientes
+```{r}
+coeficientes <- coef(modelo_lineal)
+coeficientes
+```
+```{r}
+pendiente <- round (coeficientes [2], 2)
+pendiente
+```
+```{r}
+y0 <- round(coeficientes [1],2)
+y0
+```
+```{r}
+prediccion <- data.frame (LogConc = seq(min(Datos_curva$LogConc), max(Datos_curva$LogConc), lenght.out = 100))
+prediccion$Cq <- predict(modelo_lineal, newdata = prediccion)
+head(prediccion)
+```
+
+#Obtenemos el valor de R2
+
+```{r}
+resumen_modelo <- summary(modelo_lineal)
+
+resumen_modelo
+```
+
+#Obtener el valor de R²
+```{r}
+R2 <- resumen_modelo$r.squared
+
+R2
+```
+
+
+#Queremos la ecuacion para publicarla en la gráfica
+```{r}
+ecuacion_recta <- paste0("y = ", pendiente, "x + ", y0, "\nR² = ", round(R2, 3))
+cat(ecuacion_recta)
+
+```
+#Grafica del ajuste y de la ecuacion
+```{r}
+Grafica_ajuste <- Grafica +
+  geom_line(data = prediccion,
+            aes(x = LogConc, y = Cq),
+            color = "#e6c723",
+            size = 1.5)+
+  labs(title = "Curva estándar de RT-PCR",
+       subtitle= "Equipo: LANS",
+       caption = "Diseñó: Nicole Castañeda y Ana Elena Sordo",
+       x= "Log10 (Concentración) [pg/μL)",
+       y = "Cycle threshold (Ct)" )+
+  theme_classic(base_size = 15)+
+  scale_y_continuous(labels = number_format(accuracy = 1))+
+  theme(plot.title = element_text(hjust= 0.5, face = "bold"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y = element_text(face = "bold"))+
+  annotate("text",
+           x = max(Datos_curva$LogConc) -2,
+           y = min(Datos_curva$Cq) + 20,
+           label = ecuacion_recta,
+           color = "#6e1d81",
+           size = 5, 
+           fontface = "bold",
+           hjust = 0)
+  
+  
+
+Grafica_ajuste
+```
+#Predicción de la concentración de la muestra tomando en cuenta la pendiente
+
+```{r}
+Dato_muestra <- Datos_PCR %>% 
+  filter(Practica == "Absoluta",
+         Grupo == "G1",
+         Well == "D01") %>% 
+  select("Well", "Cq")
+
+Dato_muestra
+```
+
+
+#Obtener el valor de Ct
+
+```{r}
+Ct_muestra <- round(Dato_muestra$Cq, 2)
+Ct_muestra
+```
+#Obtener el valor de x (logConc)
+```{r}
+LogConc_calculado <- (Ct_muestra-y0)/ pendiente
+
+LogConc_calculado
+
+```
+
+#Valor real 
+```{r}
+Valor_real <- 10^LogConc_calculado
+
+cat("La concentración de la muestra es:", round(Valor_real,2), "pg/µL")
+```
+#Contrucción de dataframe
+```{r}
+Datos_muestra <- data.frame(Concentracion_real = round(Valor_real,2),
+                            LogConc = round(LogConc_calculado,2),
+                            Cq = Ct_muestra)
+Datos_muestra
+```
+
+#Gráfica de la muestra 
+```{r}
+Grafica_muestra <- Grafica_ajuste+ 
+  geom_point(data = Datos_muestra,
+             aes(x = LogConc,
+                 y = Cq),
+             color = "red",
+             size = 6,
+             shape = 20)+
+  geom_segment(aes(x = min(Datos_curva$LogConc),xend= LogConc_calculado,
+                   y = Ct_muestra, yend= Ct_muestra),
+               linetype = "dotted", 
+               color = "#7e6583",
+               size = 1.5)+ 
+  geom_segment(aes(x = LogConc_calculado, xend = LogConc_calculado,
+                   y = min(Datos_curva$Cq), yend = Ct_muestra),
+               linetype = "dotted",
+               color = "#7e6583", 
+               size = 1.5)+
+  annotate("text",
+           x = LogConc_calculado,
+           y = Ct_muestra,
+           label = paste0("[Muestra] = ", round(Valor_real,2), " pg/µL"),
+           color = "black",
+           fontface = "bold",
+           hjust = -0.007,
+           vjust = -1.5)
+
+Grafica_muestra
